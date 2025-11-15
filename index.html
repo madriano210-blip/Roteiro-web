@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiro de Viagem - Gramado</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        /* (CSS inalterado) */
+        body { background-color: #121212; color: #e0e0e0; }
+        .navbar { background-color: #1f1f1f; }
+        .accordion-item { background-color: #2a2a2a; border-color: #3a3a3a; }
+        .accordion-button { background-color: #2a2a2a; color: #e0e0e0; }
+        .accordion-button:not(.collapsed) { background-color: #333; color: #ffc107; }
+        .accordion-button:focus { box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25); }
+        .list-group-item { background-color: #2a2a2a; border-color: #3a3a3a; color: #e0e0e0; display: flex; align-items: center; }
+        .modal-content { background-color: #2a2a2a; color: #e0e0e0; }
+        .modal-header { border-bottom-color: #3a3a3a; }
+        .modal-header .modal-title { color: #ffc107; }
+        .modal-footer { border-top-color: #3a3a3a; }
+        .btn-close-white { filter: invert(1) grayscale(100%) brightness(200%); }
+        .item-content { flex-grow: 1; margin-left: 0.75rem; cursor: pointer; align-self: flex-start; padding-top: 5px; }
+        .item-title { font-weight: 500; color: #e0e0e0; display: block; }
+        .item-time { display: block; font-size: 0.85rem; color: #aaa; margin-top: 4px; }
+        .item-time .fa-fw { margin-right: 4px; }
+        .form-check-input { margin-top: 8px; flex-shrink: 0; }
+        .btn-delete { flex-shrink: 0; margin-left: 0.5rem; align-self: center; }
+        .item-concluido .item-title { text-decoration: line-through; color: #888; }
+        .item-concluido .item-time { color: #666; }
+        .form-control { background-color: #333; border-color: #444; color: #e0e0e0; }
+        .form-control::placeholder { color: #888; }
+        .form-control:focus { background-color: #333; border-color: #ffc107; color: #e0e0e0; box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25); }
+        #viewModalBody a { color: #ffc107; text-decoration: underline; font-weight: bold; }
+        #viewModalBody p { margin-bottom: 0.5rem; }
+        #viewModalBody p strong { color: #bbb; }
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 2000; }
+        #appContent { display: none; }
+    </style>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Importações do Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuração e Inicialização do Firebase ---
+
+        // ==================================================================
+        // === CORREÇÃO: Esta é a sua configuração local do Firebase. =====
+        // === O nome da variável foi mudado para 'LOCAL_CONFIG' para evitar erro.
+        // ==================================================================
+        const LOCAL_CONFIG = {
+          apiKey: "AIzaSyDMMVLtcNcUwuNxo7dCTQTQs2r4MUkrxps",
+          authDomain: "roteiro-c06a6.firebaseapp.com",
+          projectId: "roteiro-c06a6",
+          storageBucket: "roteiro-c06a6.firebasestorage.app",
+          messagingSenderId: "737875624046",
+          appId: "1:737875624046:web:17cef8ef19c8e5de70a67f",
+          measurementId: "G-W679XZWSL9"
+        };
+        // ==================================================================
+
+        
+        // --- Lógica de Inicialização (NÃO ALTERAR) ---
+        // As variáveis __... são injetadas pelo ambiente do Canvas.
+        // CORREÇÃO: Agora usa 'LOCAL_CONFIG' como fallback.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : LOCAL_CONFIG;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth, userId, docRef;
+        let saveTimeout;
+        let isFirstLoad = true;
+
+        // Elementos da UI
+        const loader = document.getElementById('loader');
+        const appContent = document.getElementById('appContent');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const accordionContainer = document.getElementById('roteiroAccordion');
+
+        // --- Dados Iniciais (fallback para o primeiro carregamento) ---
+        const DEFAULT_ROTEIRO_DATA = [
+            {
+                id: "collapseOne",
+                titulo: "Dia 1: 24/12 (Qua) - Chegada e Véspera de Natal",
+                expanded: true,
+                passeios: [
+                    { id: "p1_1", title: "Chegada e Transfer", timeStart: "11:30", timeEnd: "14:30", location: "Sky Valle Hotel", description: "Porto Alegre -> Sky Valle Hotel (com parada no pórtico para fotos)", checked: false },
+                    { id: "p1_2", title: "Check-in e Descanso", timeStart: "14:30", timeEnd: "18:30", location: "Sky Valle Hotel", description: "Recuperar energias no hotel", checked: false },
+                    { id: "p1_3", title: "Preparação", timeStart: "18:30", timeEnd: "20:30", location: "Sky Valle Hotel", description: "Tempo para se arrumarem", checked: false },
+                    { id: "p1_4", title: "Ceia de Natal", timeStart: "21:00", timeEnd: "", location: "Sky Palace Hotel", description: "Ceia de Natal no Sky Palace Hotel (peça transporte com antecedência)", checked: false }
+                ]
+            },
+            {
+                id: "collapseTwo",
+                titulo: "Dia 2: 25/12 (Qui) - Natal e Centro",
+                expanded: false,
+                passeios: [
+                    { id: "p2_1", title: "Roteiro a Pé no Centro", timeStart: "09:30", timeEnd: "12:30", location: "Centro de Gramado", description: "Praça das Etnias, Rua Torta, Igreja Matriz, Fonte do Amor Eterno, Rua Coberta", checked: false },
+                    { id: "p2_2", title: "Almoço", timeStart: "13:00", timeEnd: "", location: "Centro de Gramado", description: "Almoço no Centro de Gramado (Prime Gourmet disponível)", checked: false },
+                    { id: "p2_3", title: "Atividade Livre (Museu/Lojas)", timeStart: "15:00", timeEnd: "17:00", location: "Borges de Medeiros", description: "Museu do Perfume ou explorar lojas da Borges de Medeiros", checked: false },
+                    { id: "p2_4", title: "Jantar: Pizzaria Heróis da Pizza", timeStart: "18:00", timeEnd: "", location: "Pizzaria Heróis da Pizza", description: "Jantar (voucher Prime Gourmet: compre 1, leve 2)", checked: false }
+                ]
+            },
+            {
+                id: "collapseThree",
+                titulo: "Dia 3: 26/12 (Sex) - Canela, Lago Negro e Desfile",
+                expanded: false,
+                passeios: [
+                    { id: "p3_1", title: "Passeio em Canela", timeStart: "09:30", timeEnd: "12:30", location: "Canela", description: "Catedral de Pedra e Estação Campos de Canella", checked: false },
+                    { id: "p3_2", title: "Almoço em Canela", timeStart: "12:30", timeEnd: "14:00", location: "Canela", description: "Almoço em Canela", checked: false },
+                    { id: "p3_3", title: "Lago Negro", timeStart: "14:30", timeEnd: "17:30", location: "Lago Negro", description: "Descanso/Soneca da filha no carrinho, caminhada ao redor do lago ou pedalinho", checked: false },
+                    { id: "p3_4", title: "Jantar Rápido", timeStart: "17:30", timeEnd: "18:30", location: "Região Central", description: "Café, galeteria ou lanchonete", checked: false },
+                    { id: "p3_5", title: "Aguardar o Desfile", timeStart: "18:30", timeEnd: "19:00", location: "Avenida das Hortênsias", description: "Busca pelo local na Avenida das Hortênsias (ponto de observação para o desfile)", checked: false },
+                    { id: "p3_6", title: "Desfile de Rua (Natal Luz)", timeStart: "19:00", timeEnd: "", location: "Avenida das Hortênsias", description: "Início por volta das 20h", checked: false }
+                ]
+            },
+            {
+                id: "collapseFour",
+                titulo: "Dia 4: 27/12 (Sáb) - Parque e Jantar Temático",
+                expanded: false,
+                passeios: [
+                    { id: "p4_1", title: "Terra Mágica Florybal", timeStart: "09:30", timeEnd: "16:00", location: "Terra Mágica Florybal", description: "Parque completo com almoço interno", checked: false },
+                    { id: "p4_2", title: "Retorno e Descanso", timeStart: "16:00", timeEnd: "19:00", location: "Sky Valle Hotel", description: "Descanso no hotel", checked: false },
+                    { id: "p4_3", title: "Jantar: Hector Hamburgueria", timeStart: "19:30", timeEnd: "", location: "Hector Hamburgueria", description: "Jantar (Prime Gourmet disponível)", checked: false }
+                ]
+            },
+            {
+                id: "collapseFive",
+                titulo: "Dia 5: 28/12 (Dom) - Partida",
+                expanded: false,
+                passeios: [
+                    { id: "p5_1", title: "Café da manhã e Check-out", timeStart: "07:30", timeEnd: "", location: "Sky Valle Hotel", description: "Check-out", checked: false },
+                    { id: "p5_2", title: "Traslado de Volta (Aeroporto)", timeStart: "07:45", timeEnd: "", location: "Aeroporto de Porto Alegre", description: "Transfer para voo em Porto Alegre", checked: false }
+                ]
+            }
+        ];
+
+        // --- Funções do Firebase ---
+
+        /**
+         * Inicializa o Firebase e a autenticação
+         */
+        async function initFirebase() {
+            try {
+                // VERIFICA SE A CONFIGURAÇÃO FOI ADICIONADA
+                if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "COLE_SUA_API_KEY_AQUI") {
+                    console.error("Configuração do Firebase não encontrada!");
+                    updateStatus('Erro: Configure o Firebase', 'danger');
+                    document.getElementById('loader').innerHTML = '<p class="text-danger p-3">Erro: A configuração do Firebase não foi adicionada ao arquivo HTML. Siga as instruções no código.</p>';
+                    return; // Para a execução
+                }
+                
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                // setLogLevel('debug'); // Descomente para logs detalhados
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        console.log("Usuário autenticado:", user.uid);
+                        userId = user.uid;
+                        // Define a referência do documento
+                        // Usa um appId genérico se estiver local, ou o appId do canvas
+                        const docPathAppId = (appId === 'default-app-id') ? 'local-roteiro-app' : appId;
+                        docRef = doc(db, 'artifacts', docPathAppId, 'users', userId, 'roteiroData', 'mainRoteiro');
+                        
+                        listenToRoteiro(); // Começa a ouvir as mudanças
+                    } else {
+                        console.log("Nenhum usuário logado. Tentando login...");
+                        await signIn();
+                    }
+                });
+
+                if (!auth.currentUser) {
+                    await signIn();
+                }
+                
+            } catch (error) {
+                console.error("Erro ao inicializar o Firebase:", error);
+                updateStatus('Erro de conexão', 'danger');
+                showAppContent(false); 
+            }
+        }
+
+        /**
+         * Autentica o usuário (com token ou anonimamente)
+         */
+        async function signIn() {
+            try {
+                if (initialAuthToken) {
+                    // Se estiver no Canvas, usa o token
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    // Se estiver local, usa anônimo
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Erro ao autenticar:", error);
+                updateStatus('Erro de autenticação', 'danger');
+            }
+        }
+
+        /**
+         * Ouve as mudanças no documento do roteiro (onSnapshot)
+         */
+        function listenToRoteiro() {
+            if (!docRef) return;
+            
+            updateStatus('Carregando...', 'secondary');
+
+            onSnapshot(docRef, (docSnap) => {
+                let dataToRender = null;
+                
+                if (docSnap.exists() && docSnap.data().roteiro) {
+                    console.log("Roteiro carregado do Firestore.");
+                    dataToRender = docSnap.data().roteiro;
+                    if (isFirstLoad) updateStatus('Salvo', 'success');
+                } else {
+                    console.log("Nenhum roteiro encontrado. Carregando dados padrão.");
+                    dataToRender = DEFAULT_ROTEIRO_DATA;
+                    // Salva os dados padrão no Firestore assim que possível
+                    if (isFirstLoad) debouncedSave(dataToRender); 
+                }
+                
+                // Só renderiza se for a primeira carga ou se os dados forem diferentes
+                // (Evita re-renderizar desnecessariamente após um salvamento local)
+                if (isFirstLoad) {
+                     renderRoteiroFromData(dataToRender);
+                     showAppContent(true); // Mostra o app e esconde o loader
+                     isFirstLoad = false;
+                } else {
+                    // Aqui seria a lógica para atualizações em tempo real de outro dispositivo
+                    // Por simplicidade, vamos apenas atualizar o status
+                    console.log("Dados atualizados no backend.");
+                    updateStatus('Salvo', 'success');
+                }
+
+            }, (error) => {
+                console.error("Erro ao ouvir o roteiro:", error);
+                updateStatus('Erro ao carregar', 'danger');
+                showAppContent(false); 
+            });
+        }
+
+        /**
+         * Constrói o estado do roteiro a partir do DOM
+         */
+        function buildRoteiroFromDOM() {
+            const dias = [];
+            accordionContainer.querySelectorAll('.accordion-item').forEach(item => {
+                const collapseEl = item.querySelector('.accordion-collapse');
+                if (!collapseEl) return; // Proteção
+                
+                const dia = {
+                    id: collapseEl.id,
+                    titulo: item.querySelector('.accordion-button').textContent.trim(),
+                    expanded: collapseEl.classList.contains('show'),
+                    passeios: []
+                };
+
+                item.querySelectorAll('.list-group-item').forEach(li => {
+                    const passeio = {
+                        id: li.dataset.id,
+                        title: li.dataset.title,
+                        timeStart: li.dataset.timeStart,
+                        timeEnd: li.dataset.timeEnd,
+                        location: li.dataset.location,
+                        description: li.dataset.description,
+                        checked: li.dataset.checked === 'true'
+                    };
+                    dia.passeios.push(passeio);
+                });
+                dias.push(dia);
+            });
+            return dias;
+        }
+
+        /**
+         * Salva o estado atual do roteiro no Firestore
+         */
+        async function saveRoteiro(dataToSave) {
+            if (!docRef) return;
+
+            updateStatus('Salvando...', 'warning');
+            
+            // Se os dados não forem passados, busca no DOM
+            const roteiroData = dataToSave ? dataToSave : buildRoteiroFromDOM();
+            
+            try {
+                await setDoc(docRef, { roteiro: roteiroData }, { merge: true });
+                console.log("Roteiro salvo no Firestore.");
+                updateStatus('Salvo', 'success');
+            } catch (error) {
+                console.error("Erro ao salvar o roteiro:", error);
+                updateStatus('Erro ao salvar', 'danger');
+            }
+        }
+
+        /**
+         * Evita salvamentos excessivos no DB (Debounce)
+         */
+        function debouncedSave(data = null) {
+            clearTimeout(saveTimeout);
+            updateStatus('Alterações pendentes...', 'info');
+            saveTimeout = setTimeout(() => saveRoteiro(data), 2000); // Salva 2s após a última alteração
+        }
+
+        // --- Funções de Renderização e UI ---
+
+        function updateStatus(text, bg = 'secondary') {
+            if (statusIndicator) {
+                statusIndicator.textContent = text;
+                statusIndicator.className = `badge bg-${bg} text-light`; 
+            }
+        }
+
+        function showAppContent(show) {
+            if (show) {
+                loader.style.display = 'none';
+                appContent.style.display = 'block';
+            } else {
+                // Não esconde o loader se ele já mostrou um erro
+                if (!document.querySelector('#loader p.text-danger')) {
+                    loader.style.display = 'flex';
+                }
+                appContent.style.display = 'none';
+            }
+        }
+
+        function renderRoteiroFromData(dias) {
+            accordionContainer.innerHTML = ''; 
+            
+            dias.forEach(dia => {
+                const accordionItem = document.createElement('div');
+                accordionItem.className = 'accordion-item';
+
+                const isExpanded = dia.expanded;
+                const showClass = isExpanded ? 'show' : '';
+                const collapsedClass = isExpanded ? '' : 'collapsed';
+                
+                let passeiosHTML = '';
+                dia.passeios.forEach(p => {
+                    passeiosHTML += createPasseioHTML(p);
+                });
+
+                accordionItem.innerHTML = `
+                    <h2 class="accordion-header" id="heading-${dia.id}">
+                        <button class="accordion-button ${collapsedClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${dia.id}" aria-expanded="${isExpanded}" aria-controls="${dia.id}">
+                            ${dia.titulo}
+                        </button>
+                    </h2>
+                    <div id="${dia.id}" class="accordion-collapse collapse ${showClass}" aria-labelledby="heading-${dia.id}" data-bs-parent="#roteiroAccordion">
+                        <div class="accordion-body">
+                            <ul class="list-group itinerary-list">
+                                ${passeiosHTML}
+                            </ul>
+                            <button class="btn btn-outline-warning btn-add-item mt-3">
+                                <i class="fas fa-plus me-2"></i>Adicionar Passeio
+                            </button>
+                        </div>
+                    </div>
+                `;
+                accordionContainer.appendChild(accordionItem);
+            });
+        }
+
+        function createPasseioHTML(p) {
+            const timeHTML = formatTimeString(p.timeStart, p.timeEnd);
+            const checkedAttr = p.checked ? 'checked' : '';
+            const checkedClass = p.checked ? 'item-concluido' : '';
+            const timeStyle = timeHTML ? '' : 'style="display: none;"';
+            
+            // Sanitiza os dados antes de inserir nos atributos
+            const safeTitle = p.title?.replace(/"/g, '&quot;') || '';
+            const safeLocation = p.location?.replace(/"/g, '&quot;') || '';
+            const safeDesc = p.description?.replace(/"/g, '&quot;') || '';
+            const safeTimeStart = p.timeStart || '';
+            const safeTimeEnd = p.timeEnd || '';
+            
+            return `
+                <li class="list-group-item ${checkedClass}" 
+                    data-id="${p.id}"
+                    data-title="${safeTitle}" 
+                    data-time-start="${safeTimeStart}" 
+                    data-time-end="${safeTimeEnd}" 
+                    data-location="${safeLocation}" 
+                    data-description="${safeDesc}"
+                    data-checked="${p.checked}">
+                    
+                    <input class="form-check-input" type="checkbox" ${checkedAttr}>
+                    <div class="item-content">
+                        <span class="item-title">${p.title}</span>
+                        <span class="item-time" ${timeStyle}>${timeHTML}</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger btn-delete"><i class="fas fa-trash-alt"></i></button>
+                </li>
+            `;
+        }
+        
+        // --- Funções de Lógica da Aplicação (quase inalteradas) ---
+        // (Encapsuladas para segurança)
+
+        // Função global de formatação de tempo (necessária para createPasseioHTML)
+        function formatTimeString(start, end) {
+            if (!start) return '';
+            let timeStr = start;
+            if (end && end !== start) {
+                timeStr += ` - ${end}`;
+            }
+            return `<i class="fas fa-clock fa-fw"></i> ${timeStr}`;
+        }
+
+        // --- Inicialização da Aplicação ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Instâncias dos Modais
+            const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+            const formModal = new bootstrap.Modal(document.getElementById('formModal'));
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+
+            // Variáveis de Estado
+            let currentEditingElement = null;
+            let currentDayList = null;
+            let elementToDelete = null;
+
+            function resetForm() {
+                document.getElementById('itemForm').reset();
+                currentEditingElement = null;
+                currentDayList = null;
+            }
+
+            // --- Delegação de EventOS Principal ---
+            accordionContainer.addEventListener('click', (e) => {
+                const target = e.target;
+                const itemContent = target.closest('.item-content');
+                const deleteButton = target.closest('.btn-delete');
+                const addButton = target.closest('.btn-add-item');
+
+                if (itemContent) {
+                    currentEditingElement = itemContent.closest('.list-group-item');
+                    const data = currentEditingElement.dataset;
+                    
+                    let timeStr = data.timeStart || 'N/A';
+                    if (data.timeEnd && data.timeEnd !== data.timeStart) timeStr += ` - ${data.timeEnd}`;
+
+                    let locStr = data.location || 'N/A';
+                    if (data.location) locStr = `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.location)}" target="_blank">${data.location}</a>`;
+
+                    document.getElementById('viewModalTitle').textContent = data.title;
+                    document.getElementById('viewModalBody').innerHTML = `
+                        <p><strong><i class="fas fa-clock fa-fw me-2"></i> Horário:</strong> ${timeStr}</p>
+                        <p><strong><i class="fas fa-map-marker-alt fa-fw me-2"></i> Local:</strong> ${locStr}</p>
+                        <hr>
+                        <p><strong><i class="fas fa-info-circle fa-fw me-2"></i> Descrição:</strong></p>
+                        <p>${data.description.replace(/\n/g, '<br>') || 'Sem descrição.'}</p>
+                    `;
+                    viewModal.show();
+                } 
+                else if (deleteButton) {
+                    e.stopPropagation();
+                    elementToDelete = deleteButton.closest('.list-group-item');
+                    deleteModal.show();
+                } 
+                else if (addButton) {
+                    currentDayList = addButton.previousElementSibling.closest('.itinerary-list');
+                    resetForm();
+                    document.getElementById('formModalTitle').textContent = 'Adicionar Passeio';
+                    formModal.show();
+                }
+            });
+            
+            // Checkbox change listener
+            accordionContainer.addEventListener('change', (e) => {
+                 if (e.target.classList.contains('form-check-input')) {
+                    const li = e.target.closest('.list-group-item');
+                    const isChecked = e.target.checked;
+                    li.dataset.checked = isChecked;
+                    li.classList.toggle('item-concluido', isChecked);
+                    debouncedSave();
+                }
+            });
+
+            // Form submit listener
+            document.getElementById('itemForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = {
+                    title: document.getElementById('itemTitle').value.trim() || "Novo Passeio",
+                    timeStart: document.getElementById('itemTimeStart').value,
+                    timeEnd: document.getElementById('itemTimeEnd').value,
+                    location: document.getElementById('itemLocation').value.trim(),
+                    description: document.getElementById('itemDescription').value.trim()
+                };
+
+                if (currentEditingElement) {
+                    // Atualiza
+                    currentEditingElement.dataset.title = formData.title;
+                    currentEditingElement.dataset.timeStart = formData.timeStart;
+                    currentEditingElement.dataset.timeEnd = formData.timeEnd;
+                    currentEditingElement.dataset.location = formData.location;
+                    currentEditingElement.dataset.description = formData.description;
+                    
+                    currentEditingElement.querySelector('.item-title').textContent = formData.title;
+                    
+                    const timeHTML = formatTimeString(formData.timeStart, formData.timeEnd);
+                    const timeSpan = currentEditingElement.querySelector('.item-time');
+                    timeSpan.innerHTML = timeHTML;
+                    timeSpan.style.display = timeHTML ? 'block' : 'none';
+                } else {
+                    // Adiciona
+                    const newId = `p${new Date().getTime()}`;
+                    const passeioData = { id: newId, ...formData, checked: false };
+                    const liHTML = createPasseioHTML(passeioData);
+                    currentDayList.insertAdjacentHTML('beforeend', liHTML);
+                }
+                
+                debouncedSave();
+                formModal.hide();
+                resetForm();
+            });
+
+            // Delete confirmation listener
+            document.getElementById('btnConfirmDelete').addEventListener('click', () => {
+                if (elementToDelete) {
+                    elementToDelete.remove();
+                    elementToDelete = null;
+                    debouncedSave();
+                }
+                deleteModal.hide();
+            });
+
+            // Edit button listener
+            document.getElementById('btnEdit').addEventListener('click', () => {
+                if (currentEditingElement) {
+                    viewModal.hide();
+                    resetForm();
+                    document.getElementById('formModalTitle').textContent = 'Editar Passeio';
+                    const data = currentEditingElement.dataset;
+                    document.getElementById('itemTitle').value = data.title;
+                    document.getElementById('itemTimeStart').value = data.timeStart;
+                    document.getElementById('itemTimeEnd').value = data.timeEnd;
+                    document.getElementById('itemLocation').value = data.location;
+                    document.getElementById('itemDescription').value = data.description;
+                    formModal.show();
+                }
+            });
+
+            // Inicia a conexão com o Firebase
+            initFirebase();
+        });
+
+    </script>
+</head>
+<body>
+
+    <!-- Loader -->
+    <div id="loader">
+        <div class="spinner-border text-warning" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-warning">A ligar ao banco de dados...</p>
+    </div>
+
+    <!-- Conteúdo da Aplicação -->
+    <div id="appContent">
+        <!-- Navbar ATUALIZADA -->
+        <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-map-signs me-2 text-warning"></i>
+                    Meu Roteiro de Viagem
+                </a>
+                <!-- Indicador de Status -->
+                <span class="badge bg-secondary text-light" id="statusIndicator">A ligar...</span>
+            </div>
+        </nav>
+
+        <!-- Conteúdo Principal -->
+        <div class="container-fluid p-3 p-md-4">
+            <h2 class="mb-3" style="color: #ffc107;">Roteiro Gramado (24/12 a 28/12)</h2>
+
+            <!-- Acordeão (preenchido pelo JS) -->
+            <div class="accordion" id="roteiroAccordion">
+                <!-- O conteúdo será gerado aqui pelo Firebase -->
+            </div> 
+        </div> 
+    </div> <!-- Fim do appContent -->
+
+    <!-- MODAIS (Inalterados) -->
+    <div classs="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalTitle">Detalhes do Passeio</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="viewModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-warning" id="btnEdit"><i class="fas fa-pencil-alt me-2"></i>Editar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="itemForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="formModalTitle">Adicionar Passeio</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="itemTitle" class="form-label">Título do Passeio</label>
+                            <input type="text" class="form-control" id="itemTitle" placeholder="Ex: Jantar na Cantina" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label for="itemTimeStart" class="form-label">Horário Início</label>
+                                <input type="time" class="form-control" id="itemTimeStart">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label for="itemTimeEnd" class="form-label">Horário Fim</label>
+                                <input type="time" class="form-control" id="itemTimeEnd">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="itemLocation" class="form-label">Local / Endereço</label>
+                            <input type="text" class="form-control" id="itemLocation" placeholder="Ex: Sky Valle Hotel">
+                        </div>
+                        <div class="mb-3">
+                            <label for="itemDescription" class="form-label">Descrição / Notas</label>
+                            <textarea class="form-control" id="itemDescription" rows="3" placeholder="Ex: Levar voucher do Prime Gourmet"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning" id="btnSaveForm">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Excluir Item</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir este item do roteiro?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmDelete">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+</body>
+</html>
+
