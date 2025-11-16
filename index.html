@@ -429,7 +429,7 @@
                     if (data.timeEnd && data.timeEnd !== data.timeStart) timeStr += ` - ${data.timeEnd}`;
 
                     let locStr = data.location || 'N/A';
-                    if (data.location) locStr = `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.location)}" target="_blank">${data.location}</a>`;
+                    if (data.location) locStr = data.location ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(data.location)}" target="_blank">${data.location}</a>` : 'N/A';
 
                     document.getElementById('viewModalTitle').textContent = data.title;
                     document.getElementById('viewModalBody').innerHTML = `
