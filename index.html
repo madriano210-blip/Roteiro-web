@@ -44,16 +44,11 @@
     <script type="module">
         // Importações do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // ================== MUDANÇA 1: Importar o Login Google ==================
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuração e Inicialização do Firebase ---
 
-        // ==================================================================
-        // === CORREÇÃO: Esta é a sua configuração local do Firebase. =====
-        // === O nome da variável foi mudado para 'LOCAL_CONFIG' para evitar erro.
-        // ==================================================================
         const LOCAL_CONFIG = {
           apiKey: "AIzaSyDMMVLtcNcUwuNxo7dCTQTQs2r4MUkrxps",
           authDomain: "roteiro-c06a6.firebaseapp.com",
@@ -63,12 +58,8 @@
           appId: "1:737875624046:web:17cef8ef19c8e5de70a67f",
           measurementId: "G-W679XZWSL9"
         };
-        // ==================================================================
-
         
         // --- Lógica de Inicialização (NÃO ALTERAR) ---
-        // As variáveis __... são injetadas pelo ambiente do Canvas.
-        // CORREÇÃO: Agora usa 'LOCAL_CONFIG' como fallback.
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : LOCAL_CONFIG;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -148,27 +139,23 @@
          */
         async function initFirebase() {
             try {
-                // VERIFICA SE A CONFIGURAÇÃO FOI ADICIONADA
                 if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("AIzaSyDMMVLtcNcUwuNxo7dCTQTQs2r4MUkrxps")) {
                     console.warn("Configuração do Firebase está usando valores padrão.");
-                    // Não para a execução, mas avisa
                 }
                 
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                // setLogLevel('debug'); // Descomente para logs detalhados
+                // setLogLevel('debug'); 
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         console.log("Usuário autenticado:", user.uid);
                         userId = user.uid;
-                        // Define a referência do documento
-                        // Usa um appId genérico se estiver local, ou o appId do canvas
                         const docPathAppId = (appId === 'default-app-id') ? 'local-roteiro-app' : appId;
                         docRef = doc(db, 'artifacts', docPathAppId, 'users', userId, 'roteiroData', 'mainRoteiro');
                         
-                        listenToRoteiro(); // Começa a ouvir as mudanças
+                        listenToRoteiro(); 
                     } else {
                         console.log("Nenhum usuário logado. Tentando login...");
                         await signIn();
@@ -186,34 +173,28 @@
             }
         }
 
-        // ================== MUDANÇA 2: Função de Login ==================
         /**
          * Autentica o usuário (com token ou Google Popup)
          */
         async function signIn() {
             try {
                 if (initialAuthToken) {
-                    // Se estiver no Canvas, usa o token
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // Força o login com Google Pop-up
                     console.log("Exibindo pop-up de login com Google...");
                     const provider = new GoogleAuthProvider();
                     await signInWithPopup(auth, provider);
-                    // O onAuthStateChanged vai pegar o login e continuar
                 }
             } catch (error) {
                 console.error("Erro ao autenticar:", error);
                 updateStatus('Login necessário', 'danger');
                 
-                // Adiciona um botão para o usuário tentar logar de novo se ele fechar o popup
                 const loader = document.getElementById('loader');
                 loader.innerHTML = '<p class="text-danger p-3">Você precisa fazer login para ver o roteiro.</p><button id="loginButton" class="btn btn-warning">Fazer Login com Google</button>';
                 
-                // Adiciona o evento de clique ao novo botão
                 const loginButton = document.getElementById('loginButton');
                 if (loginButton) {
-                    loginButton.onclick = signIn; // Atribui a função signIn ao clique
+                    loginButton.onclick = signIn; 
                 }
             }
         }
@@ -236,19 +217,14 @@
                 } else {
                     console.log("Nenhum roteiro encontrado. Carregando dados padrão.");
                     dataToRender = DEFAULT_ROTEIRO_DATA;
-                    // Salva os dados padrão no Firestore assim que possível
                     if (isFirstLoad) debouncedSave(dataToRender); 
                 }
                 
-                // Só renderiza se for a primeira carga ou se os dados forem diferentes
-                // (Evita re-renderizar desnecessariamente após um salvamento local)
                 if (isFirstLoad) {
                      renderRoteiroFromData(dataToRender);
-                     showAppContent(true); // Mostra o app e esconde o loader
+                     showAppContent(true); 
                      isFirstLoad = false;
                 } else {
-                    // Aqui seria a lógica para atualizações em tempo real de outro dispositivo
-                    // Por simplicidade, vamos apenas atualizar o status
                     console.log("Dados atualizados no backend.");
                     updateStatus('Salvo', 'success');
                 }
@@ -267,7 +243,7 @@
             const dias = [];
             accordionContainer.querySelectorAll('.accordion-item').forEach(item => {
                 const collapseEl = item.querySelector('.accordion-collapse');
-                if (!collapseEl) return; // Proteção
+                if (!collapseEl) return; 
                 
                 const dia = {
                     id: collapseEl.id,
@@ -301,7 +277,6 @@
 
             updateStatus('Salvando...', 'warning');
             
-            // Se os dados não forem passados, busca no DOM
             const roteiroData = dataToSave ? dataToSave : buildRoteiroFromDOM();
             
             try {
@@ -337,7 +312,6 @@
                 loader.style.display = 'none';
                 appContent.style.display = 'block';
             } else {
-                // Não esconde o loader se ele já mostrou um erro
                 if (!document.querySelector('#loader p.text-danger')) {
                     loader.style.display = 'flex';
                 }
@@ -388,7 +362,6 @@
             const checkedClass = p.checked ? 'item-concluido' : '';
             const timeStyle = timeHTML ? '' : 'style="display: none;"';
             
-            // Sanitiza os dados antes de inserir nos atributos
             const safeTitle = p.title?.replace(/"/g, '"') || '';
             const safeLocation = p.location?.replace(/"/g, '"') || '';
             const safeDesc = p.description?.replace(/"/g, '"') || '';
@@ -415,10 +388,6 @@
             `;
         }
         
-        // --- Funções de Lógica da Aplicação (quase inalteradas) ---
-        // (Encapsuladas para segurança)
-
-        // Função global de formatação de tempo (necessária para createPasseioHTML)
         function formatTimeString(start, end) {
             if (!start) return '';
             let timeStr = start;
@@ -440,13 +409,13 @@
             let currentDayList = null;
             let elementToDelete = null;
 
+            // ================== CORREÇÃO 1 ==================
+            // A resetForm SÓ deve limpar o formulário
             function resetForm() {
                 document.getElementById('itemForm').reset();
-                currentEditingElement = null;
-                currentDayList = null;
             }
 
-            // --- Delegação de EventOS Principal ---
+            // --- Delegação de Eventos Principal ---
             accordionContainer.addEventListener('click', (e) => {
                 const target = e.target;
                 const itemContent = target.closest('.item-content');
@@ -478,9 +447,12 @@
                     elementToDelete = deleteButton.closest('.list-group-item');
                     deleteModal.show();
                 } 
+                // ================== CORREÇÃO 2 ==================
+                // Define o estado de "Adição" aqui
                 else if (addButton) {
                     currentDayList = addButton.previousElementSibling.closest('.itinerary-list');
-                    resetForm();
+                    resetForm(); // Limpa os campos
+                    currentEditingElement = null; // DEFINE MODO DE "ADIÇÃO"
                     document.getElementById('formModalTitle').textContent = 'Adicionar Passeio';
                     formModal.show();
                 }
@@ -533,6 +505,11 @@
                 debouncedSave();
                 formModal.hide();
                 resetForm();
+
+                // ================== CORREÇÃO 3 ==================
+                // Limpa as variáveis DEPOIS de salvar
+                currentEditingElement = null;
+                currentDayList = null;
             });
 
             // Delete confirmation listener
@@ -549,7 +526,7 @@
             document.getElementById('btnEdit').addEventListener('click', () => {
                 if (currentEditingElement) {
                     viewModal.hide();
-                    resetForm();
+                    // NÂO precisa mais do resetForm() aqui, pois ele não limpa mais o currentEditingElement
                     document.getElementById('formModalTitle').textContent = 'Editar Passeio';
                     const data = currentEditingElement.dataset;
                     document.getElementById('itemTitle').value = data.title;
