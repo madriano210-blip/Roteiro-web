@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roteiro de Viagem - Gramado</title>
 
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <style>
@@ -43,11 +41,11 @@
         #appContent { display: none; }
     </style>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         // Importações do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // ================== MUDANÇA 1: Importar o Login Google ==================
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuração e Inicialização do Firebase ---
@@ -151,11 +149,9 @@
         async function initFirebase() {
             try {
                 // VERIFICA SE A CONFIGURAÇÃO FOI ADICIONADA
-                if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "COLE_SUA_API_KEY_AQUI") {
-                    console.error("Configuração do Firebase não encontrada!");
-                    updateStatus('Erro: Configure o Firebase', 'danger');
-                    document.getElementById('loader').innerHTML = '<p class="text-danger p-3">Erro: A configuração do Firebase não foi adicionada ao arquivo HTML. Siga as instruções no código.</p>';
-                    return; // Para a execução
+                if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("AIzaSyDMMVLtcNcUwuNxo7dCTQTQs2r4MUkrxps")) {
+                    console.warn("Configuração do Firebase está usando valores padrão.");
+                    // Não para a execução, mas avisa
                 }
                 
                 const app = initializeApp(firebaseConfig);
@@ -190,8 +186,9 @@
             }
         }
 
+        // ================== MUDANÇA 2: Função de Login ==================
         /**
-         * Autentica o usuário (com token ou anonimamente)
+         * Autentica o usuário (com token ou Google Popup)
          */
         async function signIn() {
             try {
@@ -199,12 +196,25 @@
                     // Se estiver no Canvas, usa o token
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // Se estiver local, usa anônimo
-                    await signInAnonymously(auth);
+                    // Força o login com Google Pop-up
+                    console.log("Exibindo pop-up de login com Google...");
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(auth, provider);
+                    // O onAuthStateChanged vai pegar o login e continuar
                 }
             } catch (error) {
                 console.error("Erro ao autenticar:", error);
-                updateStatus('Erro de autenticação', 'danger');
+                updateStatus('Login necessário', 'danger');
+                
+                // Adiciona um botão para o usuário tentar logar de novo se ele fechar o popup
+                const loader = document.getElementById('loader');
+                loader.innerHTML = '<p class="text-danger p-3">Você precisa fazer login para ver o roteiro.</p><button id="loginButton" class="btn btn-warning">Fazer Login com Google</button>';
+                
+                // Adiciona o evento de clique ao novo botão
+                const loginButton = document.getElementById('loginButton');
+                if (loginButton) {
+                    loginButton.onclick = signIn; // Atribui a função signIn ao clique
+                }
             }
         }
 
@@ -379,9 +389,9 @@
             const timeStyle = timeHTML ? '' : 'style="display: none;"';
             
             // Sanitiza os dados antes de inserir nos atributos
-            const safeTitle = p.title?.replace(/"/g, '&quot;') || '';
-            const safeLocation = p.location?.replace(/"/g, '&quot;') || '';
-            const safeDesc = p.description?.replace(/"/g, '&quot;') || '';
+            const safeTitle = p.title?.replace(/"/g, '"') || '';
+            const safeLocation = p.location?.replace(/"/g, '"') || '';
+            const safeDesc = p.description?.replace(/"/g, '"') || '';
             const safeTimeStart = p.timeStart || '';
             const safeTimeEnd = p.timeEnd || '';
             
@@ -559,7 +569,6 @@
 </head>
 <body>
 
-    <!-- Loader -->
     <div id="loader">
         <div class="spinner-border text-warning" role="status">
             <span class="visually-hidden">Loading...</span>
@@ -567,33 +576,24 @@
         <p class="mt-3 text-warning">A ligar ao banco de dados...</p>
     </div>
 
-    <!-- Conteúdo da Aplicação -->
     <div id="appContent">
-        <!-- Navbar ATUALIZADA -->
         <nav class="navbar navbar-expand-lg sticky-top shadow-sm">
             <div class="container-fluid">
                 <a class="navbar-brand" href="#">
                     <i class="fas fa-map-signs me-2 text-warning"></i>
                     Meu Roteiro de Viagem
                 </a>
-                <!-- Indicador de Status -->
                 <span class="badge bg-secondary text-light" id="statusIndicator">A ligar...</span>
             </div>
         </nav>
 
-        <!-- Conteúdo Principal -->
         <div class="container-fluid p-3 p-md-4">
             <h2 class="mb-3" style="color: #ffc107;">Roteiro Gramado (24/12 a 28/12)</h2>
 
-            <!-- Acordeão (preenchido pelo JS) -->
             <div class="accordion" id="roteiroAccordion">
-                <!-- O conteúdo será gerado aqui pelo Firebase -->
-            </div> 
+                </div> 
         </div> 
-    </div> <!-- Fim do appContent -->
-
-    <!-- MODAIS (Inalterados) -->
-    <div classs="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+    </div> <div classs="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -668,9 +668,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
 </body>
 </html>
-
