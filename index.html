@@ -428,8 +428,14 @@
                     let timeStr = data.timeStart || 'N/A';
                     if (data.timeEnd && data.timeEnd !== data.timeStart) timeStr += ` - ${data.timeEnd}`;
 
+                    // ================== CORREÇÃO FINAL AQUI ==================
+                    // Corrigido para criar um link válido do Google Maps
+                    // e usar a sintaxe correta do template literal ( `${...}` )
                     let locStr = data.location || 'N/A';
-                    if (data.location) locStr = data.location ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(data.location)}" target="_blank">${data.location}</a>` : 'N/A';
+                    if (data.location) {
+                        locStr = `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.location)}" target="_blank">${data.location}</a>`;
+                    }
+                    // ================== FIM DA CORREÇÃO ==================
 
                     document.getElementById('viewModalTitle').textContent = data.title;
                     document.getElementById('viewModalBody').innerHTML = `
@@ -439,6 +445,8 @@
                         <p><strong><i class="fas fa-info-circle fa-fw me-2"></i> Descrição:</strong></p>
                         <p>${data.description.replace(/\n/g, '<br>') || 'Sem descrição.'}</p>
                     `;
+                    
+                    // Esta linha agora deve ser executada sem erros
                     viewModal.show();
                 } 
                 else if (deleteButton) {
