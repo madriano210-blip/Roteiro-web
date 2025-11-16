@@ -409,7 +409,6 @@
             let currentDayList = null;
             let elementToDelete = null;
 
-            // ================== CORREÇÃO 1 ==================
             // A resetForm SÓ deve limpar o formulário
             function resetForm() {
                 document.getElementById('itemForm').reset();
@@ -447,7 +446,6 @@
                     elementToDelete = deleteButton.closest('.list-group-item');
                     deleteModal.show();
                 } 
-                // ================== CORREÇÃO 2 ==================
                 // Define o estado de "Adição" aqui
                 else if (addButton) {
                     currentDayList = addButton.previousElementSibling.closest('.itinerary-list');
@@ -506,7 +504,6 @@
                 formModal.hide();
                 resetForm();
 
-                // ================== CORREÇÃO 3 ==================
                 // Limpa as variáveis DEPOIS de salvar
                 currentEditingElement = null;
                 currentDayList = null;
@@ -526,7 +523,6 @@
             document.getElementById('btnEdit').addEventListener('click', () => {
                 if (currentEditingElement) {
                     viewModal.hide();
-                    // NÂO precisa mais do resetForm() aqui, pois ele não limpa mais o currentEditingElement
                     document.getElementById('formModalTitle').textContent = 'Editar Passeio';
                     const data = currentEditingElement.dataset;
                     document.getElementById('itemTitle').value = data.title;
@@ -570,7 +566,7 @@
             <div class="accordion" id="roteiroAccordion">
                 </div> 
         </div> 
-    </div> <div classs="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+    </div> <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
